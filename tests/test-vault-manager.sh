@@ -13,7 +13,7 @@ set -euo pipefail
 
 # Test configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly VAULT_MANAGER="$SCRIPT_DIR/vault-manager.sh"
+readonly VAULT_MANAGER="$SCRIPT_DIR/../src/vault/vault-manager.sh"
 readonly TEST_VAULT_PATH="/tmp/test-journal-vault.sparseimage"
 readonly TEST_MOUNT_POINT="/tmp/test-journal-mount"
 readonly TEST_LOG="/tmp/vault-manager-test.log"

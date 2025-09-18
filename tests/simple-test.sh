@@ -3,7 +3,7 @@
 # Simple test for vault manager
 set -euo pipefail
 
-readonly VAULT_MANAGER="./scripts/vault-manager.sh"
+readonly VAULT_MANAGER="./src/vault/vault-manager.sh"
 readonly TEST_VAULT_PATH="/tmp/simple-test-vault.sparseimage"
 readonly TEST_MOUNT_POINT="/tmp/simple-test-mount"
 

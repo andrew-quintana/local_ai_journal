@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-readonly VAULT_MANAGER="./scripts/vault-manager.sh"
+readonly VAULT_MANAGER="./src/vault/vault-manager.sh"
 readonly DEMO_VAULT_PATH="/tmp/demo-journal-vault.sparseimage"
 readonly DEMO_MOUNT_POINT="/tmp/demo-journal-mount"
 

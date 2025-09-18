@@ -2,78 +2,32 @@
 
 A privacy-first, local AI-assisted journaling system with encrypted storage and localhost-only AI services.
 
-## 🎯 **Project Overview**
-
-This project provides a complete local journaling infrastructure that ensures your personal thoughts and reflections remain completely private while leveraging AI assistance for analysis and insights.
-
-### **Core Features**
-- **🔒 Encrypted Storage**: AES-256 encrypted APFS vaults for journal data
-- **🤖 Local AI**: Ollama-powered AI assistance without data transmission
-- **🌐 Web Interface**: Open WebUI for intuitive journal interaction
-- **🔐 Privacy First**: All operations local, no external data transmission
-- **⚡ Production Ready**: Clean architecture suitable for distribution
-
-## 📁 **Project Structure**
-
-```
-local_journal/
-├── bin/                          # Executable scripts (future)
-├── config/                       # Configuration files
-│   └── vault.conf               # Vault management defaults
-├── docs/                        # Documentation
-│   ├── architecture/            # Technical architecture docs
-│   │   └── RFC001.md           # System architecture RFC
-│   ├── implementation/          # Implementation guides
-│   │   ├── VAULT_MANAGEMENT.md # Vault system documentation
-│   │   ├── implementation_prompts.md
-│   │   └── prompts/            # Phase-specific prompts
-│   ├── planning/               # Project planning docs
-│   │   ├── PRD001.md          # Product requirements
-│   │   ├── TODO001.md         # Implementation plan
-│   │   └── fracas.md          # Failure tracking
-│   └── README.md               # Project documentation
-├── scripts/                     # Operational scripts
-│   ├── vault/                  # Vault management scripts
-│   │   ├── vault-manager.sh   # Core vault operations
-│   │   └── demo-vault-manager.sh
-│   ├── docker/                 # Docker orchestration (future)
-│   └── session/                # Session control (future)
-├── tests/                      # Test suites
-│   ├── vault/                  # Vault management tests
-│   │   ├── test-vault-manager.sh
-│   │   └── simple-test.sh
-│   └── integration/            # Integration tests (future)
-├── archive/                    # Legacy scripts
-└── requirements.txt            # Python dependencies
-```
-
-## 🚀 **Quick Start**
+## 🎯 **Quick Start**
 
 ### Prerequisites
 - **macOS 10.15+** (APFS support required)
 - **Docker Desktop 4.0+**
 - **8GB+ RAM, 10GB+ disk space**
-- **Internet connection** (initial setup only)
 
 ### Phase 1: Vault Management ✅
 ```bash
 # Check if vault exists
-./scripts/vault/vault-manager.sh exists
+./src/vault/vault-manager.sh exists
 
 # Create new vault (interactive passphrase)
-./scripts/vault/vault-manager.sh create 5g ~/MyJournal.sparseimage
+./src/vault/vault-manager.sh create 5g ~/MyJournal.sparseimage
 
 # Mount vault (interactive passphrase)
-./scripts/vault/vault-manager.sh mount
+./src/vault/vault-manager.sh mount
 
 # Check vault status
-./scripts/vault/vault-manager.sh status
+./src/vault/vault-manager.sh status
 
 # Unmount vault
-./scripts/vault/vault-manager.sh unmount
+./src/vault/vault-manager.sh unmount
 ```
 
-### Phase 2: Docker Orchestration (Coming Soon)
+### Phase 2: Complete System (Coming Soon)
 ```bash
 # Start journaling session
 ./bin/journals-up.sh
@@ -85,19 +39,50 @@ open http://localhost:3000
 ./bin/journals-down.sh
 ```
 
-## 🔒 **Security Architecture**
+## 🔒 **Security Features**
 
-### Data Protection
 - **AES-256 Encryption**: All journal data encrypted at rest
 - **Interactive Passphrases**: No passphrase storage or logging
 - **Localhost-Only Services**: All AI services bound to 127.0.0.1
 - **Read-Only AI Access**: AI can read but never modify journals
+- **Complete Privacy**: No external data transmission
 
-### Privacy Guarantees
-- **No External Access**: Complete local operation
-- **No Data Logging**: Journal content never appears in logs
-- **Ephemeral AI Processing**: No persistent AI data storage
-- **Secure Cleanup**: Automatic cleanup of sensitive data
+## 📁 **Project Structure**
+
+```
+local_journal/
+├── bin/                    # User-facing executables
+│   ├── journals-up.sh     # Start journaling session
+│   ├── journals-down.sh   # Stop journaling session
+│   ├── journals-start.sh  # Legacy start script
+│   └── journals-stop.sh   # Legacy stop script
+├── src/                    # Core system components
+│   ├── vault/             # Vault management system
+│   │   ├── vault-manager.sh      # Core vault operations
+│   │   ├── demo-vault-manager.sh # Demonstration script
+│   │   └── vault.conf            # Configuration defaults
+│   ├── docker/            # Docker orchestration (Phase 2)
+│   └── session/           # Session control (Phase 2)
+├── tests/                  # Test suites
+│   ├── test-vault-manager.sh    # Vault management tests
+│   └── simple-test.sh           # Simple test script
+├── docs/                   # Documentation
+│   ├── security/          # Security documentation
+│   ├── user/              # User guides
+│   └── dev/               # Developer documentation
+├── archive/                # Legacy scripts
+└── requirements.txt        # Python dependencies
+```
+
+## 🧪 **Testing**
+
+```bash
+# Test vault operations
+./src/vault/demo-vault-manager.sh
+
+# Run comprehensive tests
+./tests/test-vault-manager.sh
+```
 
 ## 📊 **Implementation Status**
 
@@ -106,7 +91,6 @@ open http://localhost:3000
 - [x] Atomic operations with rollback capability
 - [x] Comprehensive error handling
 - [x] Security validation and integrity checks
-- [x] Complete documentation and testing
 
 ### ⏳ Phase 2: AI Integration (PLANNED)
 - [ ] Docker orchestration for AI services
@@ -118,46 +102,14 @@ open http://localhost:3000
 - [ ] Security hardening and validation
 - [ ] Cross-platform compatibility
 - [ ] Distribution preparation
-- [ ] Community documentation
-
-## 🧪 **Testing**
-
-### Manual Testing
-```bash
-# Test vault operations
-./scripts/vault/demo-vault-manager.sh
-
-# Run comprehensive tests
-./tests/vault/test-vault-manager.sh
-```
-
-### Test Coverage
-- ✅ Vault operations (create, mount, unmount, status, validate)
-- ✅ Security features (passphrase handling, encryption)
-- ✅ Error handling and edge cases
-- ✅ Atomic operations and rollback
 
 ## 📚 **Documentation**
 
-- **[Architecture](docs/architecture/)** - Technical system design
-- **[Implementation](docs/implementation/)** - Implementation guides and prompts
-- **[Planning](docs/planning/)** - Project requirements and planning
-- **[Vault Management](docs/implementation/VAULT_MANAGEMENT.md)** - Complete vault system docs
-
-## 🤝 **Contributing**
-
-This project follows a structured development approach:
-1. **Documentation First**: PRD → RFC → Implementation
-2. **Security First**: Every component designed with security as primary concern
-3. **Testing Driven**: Comprehensive testing at all levels
-4. **Failure Tracked**: FRACAS methodology for systematic analysis
-
-## 📄 **License**
-
-This project is designed for personal use and community sharing. See individual files for specific licensing information.
+- **[Security Docs](docs/security/)** - Security architecture and best practices
+- **[User Guides](docs/user/)** - User documentation and tutorials
+- **[Developer Docs](docs/dev/)** - Technical documentation and architecture
 
 ---
 
 **Project Status**: Phase 1 Complete ✅  
-**Last Updated**: 2025-01-18  
-**Maintainer**: Local Development Team
+**Last Updated**: 2025-01-18
