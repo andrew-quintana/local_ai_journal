@@ -1,0 +1,33 @@
+# dev tools
+.claude/*
+.cursor/*
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+env/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Docker
+*.pid
+*.log
+
+# Editors/Tools
+.claude/
+.cursor/
+.vscode/
+.idea/
+
+# initiatves
+initiatives/
