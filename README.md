@@ -105,9 +105,18 @@ local_journal/
 
 ## 📚 **Documentation**
 
-- **[Security Docs](docs/security/)** - Security architecture and best practices
-- **[User Guides](docs/user/)** - User documentation and tutorials
-- **[Developer Docs](docs/dev/)** - Technical documentation and architecture
+### User Documentation
+- **[Getting Started](docs/user/GETTING_STARTED.md)** - Quick setup and basic usage
+- **[Vault Management](docs/user/VAULT_MANAGEMENT.md)** - Complete vault operations guide
+
+### Security Documentation
+- **[Security Overview](docs/security/SECURITY_OVERVIEW.md)** - Security architecture and principles
+- **[Vault Security](docs/security/VAULT_MANAGEMENT.md)** - Detailed vault security implementation
+
+### Developer Documentation
+- **[Development Guide](docs/dev/DEVELOPMENT_GUIDE.md)** - Development workflow and standards
+- **[Architecture](docs/dev/RFC001.md)** - Technical system architecture
+- **[Requirements](docs/dev/PRD001.md)** - Product requirements and specifications
 
 ---
 

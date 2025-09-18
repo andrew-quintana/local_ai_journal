@@ -2,26 +2,28 @@
 
 ## Overview
 
-Local Journal is a secure, privacy-first journaling system that keeps your personal thoughts completely private while providing AI assistance for analysis and insights.
+Local Journal is a secure, privacy-first journaling system that keeps your personal thoughts completely private while providing AI assistance for analysis and insights. All data stays on your computer with military-grade encryption.
 
 ## Quick Setup
 
 ### 1. Prerequisites
-- macOS 10.15+ (for APFS support)
-- Docker Desktop 4.0+
-- 8GB+ RAM, 10GB+ disk space
+- **macOS 10.15+** (for APFS support)
+- **Docker Desktop 4.0+** (for AI services)
+- **8GB+ RAM, 10GB+ disk space**
+- **Internet connection** (initial setup only)
 
 ### 2. Create Your First Vault
 
 ```bash
-# Create a new encrypted vault
+# Create a new encrypted vault (5GB size)
 ./src/vault/vault-manager.sh create 5g ~/MyJournal.sparseimage
 ```
 
 This will:
-- Prompt you for a secure passphrase
+- Prompt you for a secure passphrase (minimum 8 characters)
 - Create an AES-256 encrypted vault
 - Verify the vault integrity
+- Set up the vault for secure journal storage
 
 ### 3. Mount Your Vault
 
@@ -30,6 +32,8 @@ This will:
 ./src/vault/vault-manager.sh mount
 ```
 
+The vault will be mounted at `~/Journals` by default.
+
 ### 4. Check Vault Status
 
 ```bash
@@ -37,12 +41,16 @@ This will:
 ./src/vault/vault-manager.sh status
 ```
 
+Should return `mounted` when ready.
+
 ### 5. Unmount When Done
 
 ```bash
 # Securely unmount your vault
 ./src/vault/vault-manager.sh unmount
 ```
+
+Always unmount your vault when finished to ensure data security.
 
 ## Security Features
 
