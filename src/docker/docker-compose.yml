@@ -1,0 +1,188 @@
+# Docker Compose Configuration for Journals Infrastructure
+# 
+# This configuration provides secure Docker orchestration for AI services
+# with localhost-only binding and read-only journal access.
+#
+# Security Features:
+# - All services bound to localhost only (127.0.0.1)
+# - Journal directory mounted read-only
+# - Isolated Docker network
+# - No external network access
+# - Minimal container privileges
+#
+# Author: Local Development Team
+# Version: 1.0
+# Date: 2025-01-18
+
+version: "3.8"
+
+# Network configuration for service isolation
+networks:
+  journals-internal:
+    driver: bridge
+    internal: true  # No external network access
+    name: journals-internal
+
+# Volume configuration for secure data access
+volumes:
+  ollama-data:
+    driver: local
+    name: journals-ollama-data
+    
+  webui-data:
+    driver: local
+    name: journals-webui-data
+    
+  journals-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind,ro  # Read-only bind mount
+      device: ${VAULT_MOUNT_POINT:-${HOME}/Journals}
+
+# Service definitions
+services:
+  # Ollama AI Model Server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: journals-ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"  # Localhost only
+    volumes:
+      - ollama-data:/root/.ollama
+      - journals-data:/journals:ro  # Read-only journal access
+    networks:
+      - journals-internal
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Ollama needs write access for model storage
+    tmpfs:
+      - /tmp:noexec,nosuid,size=1g
+    user: "1000:1000"  # Non-root user
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - SETGID
+      - SETUID
+
+  # Open WebUI Interface
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: journals-webui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEBUI_PORT:-3000}:8080"  # Localhost only
+    volumes:
+      - webui-data:/app/backend/data
+      - journals-data:/journals:ro  # Read-only journal access
+    networks:
+      - journals-internal
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-$(openssl rand -base64 32)}
+      - WEBUI_JWT_SECRET_KEY=${WEBUI_JWT_SECRET_KEY:-$(openssl rand -base64 32)}
+      - ENABLE_SIGNUP=false  # Disable user registration
+      - ENABLE_LOGIN_FORM=true
+      - ENABLE_OAUTH_SIGNUP=false
+      - ENABLE_OPENAI_API=false
+      - ENABLE_ANTHROPIC_API=false
+      - ENABLE_GOOGLE_API=false
+      - ENABLE_COHERE_API=false
+      - ENABLE_AZURE_OPENAI_API=false
+      - ENABLE_OPENROUTER_API=false
+      - ENABLE_TABBY_API=false
+      - ENABLE_LOCAL_WEB_SEARCH=false
+      - ENABLE_COMMUNITY_SHARING=false
+      - ENABLE_MESSAGE_RATING=false
+      - ENABLE_ADMIN_EXPORT=false
+      - ENABLE_ADMIN_CHAT_ACCESS=false
+      - ENABLE_ADMIN_USER_MANAGEMENT=false
+      - ENABLE_ADMIN_MODEL_MANAGEMENT=false
+      - ENABLE_ADMIN_SYSTEM_MONITORING=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_RICH_TEXT=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_MARKDOWN=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_CODE_HIGHLIGHTING=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_MATH=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_MERMAID=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_DIAGRAMS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_TABLES=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_TASKLISTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_STRIKETHROUGH=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_FOOTNOTES=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_DEFINITION_LISTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_ABBREVIATIONS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_SUBSCRIPTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_SUPERSCRIPTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_QUOTES=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_SMARTYPANTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_TYPOGRAPHER=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_ATTRIBUTES=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_CONTAINERS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_ALERTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_ICONS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_EMOJI=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_FOOTNOTES=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_DEFINITION_LISTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_ABBREVIATIONS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_SUBSCRIPTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_SUPERSCRIPTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_QUOTES=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_SMARTYPANTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_TYPOGRAPHER=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_ATTRIBUTES=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_CONTAINERS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_ALERTS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_ICONS=false
+      - ENABLE_ADMIN_ANNOUNCEMENTS_EMOJI=false
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=512m
+      - /app/backend/data:noexec,nosuid,size=1g
+    user: "1000:1000"  # Non-root user
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - SETGID
+      - SETUID
