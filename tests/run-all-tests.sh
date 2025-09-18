@@ -167,6 +167,14 @@ run_all_tests() {
         suite_results+=("Vault Manager: FAILED")
     fi
     
+    # Run model management tests
+    log "TEST" "=== Model Management Tests ==="
+    if aggregate_test_results "$SCRIPT_DIR/test-model-management.sh" "Model Management Tests"; then
+        suite_results+=("Model Management: PASSED")
+    else
+        suite_results+=("Model Management: FAILED")
+    fi
+    
     # Display suite results
     echo
     log "INFO" "=== Test Suite Results ==="
@@ -261,6 +269,7 @@ Test Suites:
   - Security Validation Tests
   - Simple Integration Tests
   - Vault Manager Tests
+  - Model Management Tests
 
 Examples:
   $0 run         # Run all test suites

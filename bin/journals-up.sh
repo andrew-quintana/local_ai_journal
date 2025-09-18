@@ -288,41 +288,36 @@ verify_services_ready() {
     error_exit "Services failed to become ready within ${HEALTH_CHECK_TIMEOUT} seconds"
 }
 
-# Manage AI models
+# Manage AI models using the new model management system
 manage_models() {
     log "STEP" "Managing AI models..."
     
-    # Wait for Ollama to be ready
-    local max_attempts=30
-    local attempt=0
-    
-    while [[ $attempt -lt $max_attempts ]]; do
-        if curl -f "http://127.0.0.1:11434/api/tags" >/dev/null 2>&1; then
-            break
-        fi
-        
-        log "INFO" "Waiting for Ollama to be ready... (attempt $((attempt + 1))/$max_attempts)"
-        sleep 2
-        ((attempt++))
-    done
-    
-    if [[ $attempt -eq $max_attempts ]]; then
-        log "WARN" "Ollama did not become ready in time, skipping model management"
-        return 0
+    # Source the model manager
+    local model_manager="${PROJECT_ROOT}/src/model/model-manager.sh"
+    if [[ ! -f "$model_manager" ]]; then
+        log "ERROR" "Model manager not found: $model_manager"
+        return 1
     fi
     
-    # Check if default model exists
+    # Ensure model availability with fallback support
     local model_name="${OLLAMA_MODEL:-llama3.2:3b}"
-    if ! curl -s "http://127.0.0.1:11434/api/tags" | grep -q "$model_name"; then
-        log "INFO" "Pulling model: $model_name"
-        if ! docker exec journals-ollama ollama pull "$model_name"; then
-            log "WARN" "Failed to pull model: $model_name"
-        else
-            log "SUCCESS" "Model pulled successfully: $model_name"
-        fi
-    else
-        log "INFO" "Model already exists: $model_name"
+    if ! "$model_manager" ensure "$model_name"; then
+        log "ERROR" "Failed to ensure model availability: $model_name"
+        return 1
     fi
+    
+    # Validate model health
+    if ! "$model_manager" health "$model_name"; then
+        log "WARN" "Model health check failed, but continuing with startup"
+    fi
+    
+    # Preload model for better performance
+    if [[ "${ENABLE_PRELOADING:-true}" == "true" ]]; then
+        log "INFO" "Preloading model for better performance..."
+        "$model_manager" preload "$model_name" || log "WARN" "Model preloading failed"
+    fi
+    
+    log "SUCCESS" "Model management completed successfully"
 }
 
 # Display access information and status
