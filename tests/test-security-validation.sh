@@ -221,7 +221,7 @@ test_port_binding_security() {
     
     # Check for localhost-only binding
     local ollama_localhost
-    ollama_localhost=$(netstat -an 2>/dev/null | grep -c "127.0.0.1:${OLLAMA_PORT:-11434}" || echo "0")
+    ollama_localhost=$(netstat -an 2>/dev/null | grep "127.0.0.1:${OLLAMA_PORT:-11434}" | wc -l | tr -d ' ')
     
     if [[ "$ollama_localhost" -gt 0 ]]; then
         security_pass "port_binding_ollama_localhost" "Ollama bound to localhost only"

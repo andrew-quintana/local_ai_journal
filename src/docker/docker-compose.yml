@@ -21,7 +21,7 @@
 networks:
   journals-internal:
     driver: bridge
-    internal: true  # No external network access
+    internal: false  # Allow external network access for port binding
     name: journals-internal
 
 # Volume configuration for secure data access
@@ -49,7 +49,7 @@ services:
     container_name: journals-ollama
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"  # Localhost only
+      - "11435:11434"  # Port mapping
     volumes:
       - ollama-data:/root/.ollama
       - journals-data:/journals:ro  # Read-only journal access
@@ -92,7 +92,7 @@ services:
     container_name: journals-webui
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${WEBUI_PORT:-3000}:8080"  # Localhost only
+      - "127.0.0.1:3000:8080"  # Localhost only binding
     volumes:
       - journals-data:/journals:ro  # Read-only journal access
       - webui-data:/app/backend/data  # Persistent WebUI data
@@ -101,8 +101,8 @@ services:
     environment:
       # Core WebUI Configuration
       - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-$(openssl rand -base64 32)}
-      - WEBUI_JWT_SECRET_KEY=${WEBUI_JWT_SECRET_KEY:-$(openssl rand -base64 32)}
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-TQ8wmRWLlIVhelwyM1tdHJkN1cpbrFNqxBsUn7kbJM0=}
+      - WEBUI_JWT_SECRET_KEY=${WEBUI_JWT_SECRET_KEY:-kzIdNaWu8WsNF4oXP54QNC+k0JF4EGVu+bT2UzpkNsw=}
       
       # Security Configuration
       - ENABLE_SIGNUP=false  # Disable user registration
@@ -161,6 +161,7 @@ services:
       - WEBUI_HOST=0.0.0.0
       - WEBUI_PORT=8080
       - WEBUI_ORIGINS=http://127.0.0.1:${WEBUI_PORT:-3000}
+      - CORS_ALLOW_ORIGIN=http://127.0.0.1:${WEBUI_PORT:-3000}
       
       # File Upload Security
       - ENABLE_FILE_UPLOAD=false
