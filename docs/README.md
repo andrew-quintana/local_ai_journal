@@ -39,6 +39,10 @@ A comprehensive rebuild of the secure local journaling infrastructure with AI as
   - Testing scenarios and investigation guidelines
   - System health metrics and monitoring
 
+### FRACAS Items
+- **[FRACAS_DOCKER_HANG_ISSUES.md](initiatives/FRACAS_DOCKER_HANG_ISSUES.md)** - Docker daemon communication issues (RESOLVED)
+- **[FRACAS_WEBUI_PORT_BINDING_ISSUE.md](initiatives/FRACAS_WEBUI_PORT_BINDING_ISSUE.md)** - WebUI port binding failure (OPEN)
+
 - **[ADJACENT_INDEX.md](ADJACENT_INDEX.md)** - Dependencies Tracking
   - External system interfaces and versions
   - Compatibility matrix and performance characteristics
