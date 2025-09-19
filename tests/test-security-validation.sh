@@ -479,6 +479,110 @@ test_encryption_integrity() {
     fi
 }
 
+# Test WebUI-specific security
+test_webui_security() {
+    log "SECURITY" "Testing WebUI-specific security..."
+    
+    # Check if WebUI container is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "^journals-webui$"; then
+        security_skip "webui_container" "WebUI container not running"
+        return 0
+    fi
+    
+    # Test WebUI read-only journal mount
+    local webui_write_test
+    webui_write_test=$(docker exec journals-webui touch /journals/security-test-write 2>&1 || echo "write_failed")
+    
+    if [[ "$webui_write_test" == *"write_failed"* ]] || [[ "$webui_write_test" == *"Read-only"* ]] || [[ "$webui_write_test" == *"Permission denied"* ]]; then
+        security_pass "webui_readonly_mount" "WebUI journals volume is read-only"
+    else
+        security_violation "webui_readonly_mount" "WebUI journals volume is writable"
+    fi
+    
+    # Clean up test file if it was created
+    docker exec journals-webui rm -f /journals/security-test-write 2>/dev/null || true
+    
+    # Test WebUI external network access
+    local webui_external_test
+    webui_external_test=$(docker exec journals-webui ping -c 1 8.8.8.8 2>&1 || echo "ping_failed")
+    
+    if [[ "$webui_external_test" == *"ping_failed"* ]] || [[ "$webui_external_test" == *"Network unreachable"* ]]; then
+        security_pass "webui_external_access" "WebUI cannot access external networks"
+    else
+        security_violation "webui_external_access" "WebUI can access external networks"
+    fi
+    
+    # Test WebUI DNS resolution
+    local webui_dns_test
+    webui_dns_test=$(docker exec journals-webui nslookup google.com 2>&1 || echo "dns_failed")
+    
+    if [[ "$webui_dns_test" == *"dns_failed"* ]] || [[ "$webui_dns_test" == *"Name or service not known"* ]]; then
+        security_pass "webui_dns_resolution" "WebUI cannot resolve external DNS"
+    else
+        security_violation "webui_dns_resolution" "WebUI can resolve external DNS"
+    fi
+    
+    # Test WebUI container security
+    local webui_user
+    webui_user=$(docker exec journals-webui id -u 2>/dev/null || echo "unknown")
+    
+    if [[ "$webui_user" == "1000" ]]; then
+        security_pass "webui_container_user" "WebUI running as non-root user (UID: $webui_user)"
+    else
+        security_violation "webui_container_user" "WebUI running as root or unknown user (UID: $webui_user)"
+    fi
+    
+    # Test WebUI container privileges
+    local webui_privileged
+    webui_privileged=$(docker inspect journals-webui --format='{{.HostConfig.Privileged}}' 2>/dev/null || echo "unknown")
+    
+    if [[ "$webui_privileged" == "false" ]]; then
+        security_pass "webui_container_privileged" "WebUI not running in privileged mode"
+    else
+        security_violation "webui_container_privileged" "WebUI running in privileged mode"
+    fi
+    
+    # Test WebUI read-only filesystem
+    local webui_readonly
+    webui_readonly=$(docker inspect journals-webui --format='{{.HostConfig.ReadonlyRootfs}}' 2>/dev/null || echo "unknown")
+    
+    if [[ "$webui_readonly" == "true" ]]; then
+        security_pass "webui_container_readonly" "WebUI running with read-only filesystem"
+    else
+        security_fail "webui_container_readonly" "WebUI not running with read-only filesystem"
+    fi
+    
+    # Test WebUI port binding
+    local webui_localhost
+    webui_localhost=$(netstat -an 2>/dev/null | grep -c "127.0.0.1:${WEBUI_PORT:-3000}" || echo "0")
+    
+    if [[ "$webui_localhost" -gt 0 ]]; then
+        security_pass "webui_port_binding" "WebUI bound to localhost only"
+    else
+        security_violation "webui_port_binding" "WebUI not bound to localhost"
+    fi
+    
+    # Test WebUI external port binding (security violation)
+    local webui_external_port
+    webui_external_port=$(netstat -an 2>/dev/null | grep -c "0.0.0.0:${WEBUI_PORT:-3000}" || echo "0")
+    
+    if [[ "$webui_external_port" -gt 0 ]]; then
+        security_violation "webui_external_port" "WebUI bound to external interfaces"
+    else
+        security_pass "webui_external_port" "WebUI not bound to external interfaces"
+    fi
+    
+    # Test WebUI Ollama connection
+    local webui_ollama_test
+    webui_ollama_test=$(docker exec journals-webui curl -f "http://ollama:11434/api/tags" 2>&1 || echo "connection_failed")
+    
+    if [[ "$webui_ollama_test" == *"connection_failed"* ]]; then
+        security_fail "webui_ollama_connection" "WebUI cannot connect to Ollama"
+    else
+        security_pass "webui_ollama_connection" "WebUI can connect to Ollama"
+    fi
+}
+
 # Generate security report
 generate_security_report() {
     echo
@@ -521,6 +625,7 @@ run_security_tests() {
     test_data_protection
     test_access_control
     test_encryption_integrity
+    test_webui_security
     
     # Generate report
     generate_security_report

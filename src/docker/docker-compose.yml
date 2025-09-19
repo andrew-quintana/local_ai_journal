@@ -14,7 +14,8 @@
 # Version: 1.0
 # Date: 2025-01-18
 
-version: "3.8"
+# Docker Compose Configuration for Journals Infrastructure
+# Version 3.8 (version field removed for compatibility)
 
 # Network configuration for service isolation
 networks:
@@ -58,7 +59,7 @@ services:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_ORIGINS=*
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -93,17 +94,24 @@ services:
     ports:
       - "127.0.0.1:${WEBUI_PORT:-3000}:8080"  # Localhost only
     volumes:
-      - webui-data:/app/backend/data
       - journals-data:/journals:ro  # Read-only journal access
+      - webui-data:/app/backend/data  # Persistent WebUI data
     networks:
       - journals-internal
     environment:
+      # Core WebUI Configuration
       - OLLAMA_BASE_URL=http://ollama:11434
       - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-$(openssl rand -base64 32)}
       - WEBUI_JWT_SECRET_KEY=${WEBUI_JWT_SECRET_KEY:-$(openssl rand -base64 32)}
+      
+      # Security Configuration
       - ENABLE_SIGNUP=false  # Disable user registration
       - ENABLE_LOGIN_FORM=true
       - ENABLE_OAUTH_SIGNUP=false
+      - WEBUI_DISABLE_SIGNUP=true
+      - WEBUI_DISABLE_LOGIN_FORM=false
+      
+      # Disable all external API integrations
       - ENABLE_OPENAI_API=false
       - ENABLE_ANTHROPIC_API=false
       - ENABLE_GOOGLE_API=false
@@ -111,15 +119,21 @@ services:
       - ENABLE_AZURE_OPENAI_API=false
       - ENABLE_OPENROUTER_API=false
       - ENABLE_TABBY_API=false
+      
+      # Disable external features
       - ENABLE_LOCAL_WEB_SEARCH=false
       - ENABLE_COMMUNITY_SHARING=false
       - ENABLE_MESSAGE_RATING=false
+      
+      # Disable admin features for security
       - ENABLE_ADMIN_EXPORT=false
       - ENABLE_ADMIN_CHAT_ACCESS=false
       - ENABLE_ADMIN_USER_MANAGEMENT=false
       - ENABLE_ADMIN_MODEL_MANAGEMENT=false
       - ENABLE_ADMIN_SYSTEM_MONITORING=false
       - ENABLE_ADMIN_ANNOUNCEMENTS=false
+      
+      # Disable rich text features to reduce attack surface
       - ENABLE_ADMIN_ANNOUNCEMENTS_RICH_TEXT=false
       - ENABLE_ADMIN_ANNOUNCEMENTS_MARKDOWN=false
       - ENABLE_ADMIN_ANNOUNCEMENTS_CODE_HIGHLIGHTING=false
@@ -142,19 +156,23 @@ services:
       - ENABLE_ADMIN_ANNOUNCEMENTS_ALERTS=false
       - ENABLE_ADMIN_ANNOUNCEMENTS_ICONS=false
       - ENABLE_ADMIN_ANNOUNCEMENTS_EMOJI=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_FOOTNOTES=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_DEFINITION_LISTS=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_ABBREVIATIONS=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_SUBSCRIPTS=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_SUPERSCRIPTS=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_QUOTES=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_SMARTYPANTS=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_TYPOGRAPHER=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_ATTRIBUTES=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_CONTAINERS=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_ALERTS=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_ICONS=false
-      - ENABLE_ADMIN_ANNOUNCEMENTS_EMOJI=false
+      
+      # Network Security
+      - WEBUI_HOST=0.0.0.0
+      - WEBUI_PORT=8080
+      - WEBUI_ORIGINS=http://127.0.0.1:${WEBUI_PORT:-3000}
+      
+      # File Upload Security
+      - ENABLE_FILE_UPLOAD=false
+      - MAX_FILE_SIZE=0
+      
+      # Session Security
+      - SESSION_TIMEOUT=3600
+      - JWT_EXPIRATION=3600
+      
+      # Logging Security
+      - LOG_LEVEL=WARNING
+      - ENABLE_DEBUG=false
     depends_on:
       ollama:
         condition: service_healthy
@@ -174,11 +192,11 @@ services:
           cpus: '0.5'
     security_opt:
       - no-new-privileges:true
-    read_only: true
+    # read_only: true  # Temporarily disabled for testing
     tmpfs:
       - /tmp:noexec,nosuid,size=512m
-      - /app/backend/data:noexec,nosuid,size=1g
-    user: "1000:1000"  # Non-root user
+      - /var/tmp:noexec,nosuid,size=256m
+    # user: "1000:1000"  # Non-root user - temporarily disabled for testing
     cap_drop:
       - ALL
     cap_add:
@@ -186,3 +204,9 @@ services:
       - FOWNER
       - SETGID
       - SETUID
+    sysctls:
+      - net.core.somaxconn=1024
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048

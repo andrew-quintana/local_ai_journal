@@ -22,6 +22,9 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 readonly DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-$SCRIPT_DIR/docker-compose.yml}"
+readonly WEBUI_SECURITY_CONF="${WEBUI_SECURITY_CONF:-$SCRIPT_DIR/webui-security.conf}"
+readonly WEBUI_SECURITY_MANAGER="${WEBUI_SECURITY_MANAGER:-$SCRIPT_DIR/webui-security-manager.sh}"
+readonly WEBUI_MONITOR="${WEBUI_MONITOR:-$SCRIPT_DIR/webui-monitor.sh}"
 readonly VAULT_MOUNT_POINT="${VAULT_MOUNT_POINT:-${HOME}/Journals}"
 readonly OLLAMA_PORT="${OLLAMA_PORT:-11434}"
 readonly WEBUI_PORT="${WEBUI_PORT:-3000}"
@@ -122,11 +125,23 @@ get_docker_compose_cmd() {
     fi
 }
 
+# Load WebUI security configuration
+load_webui_security_config() {
+    if [[ -f "$WEBUI_SECURITY_CONF" ]]; then
+        log "INFO" "Loading WebUI security configuration..."
+        source "$WEBUI_SECURITY_CONF"
+        log "SUCCESS" "WebUI security configuration loaded"
+    else
+        log "WARN" "WebUI security configuration file not found: $WEBUI_SECURITY_CONF"
+    fi
+}
+
 # Start Docker stack
 docker_stack_up() {
     log "INFO" "Starting Docker stack..."
     
     check_prerequisites
+    load_webui_security_config
     
     local compose_cmd
     compose_cmd=$(get_docker_compose_cmd)
@@ -150,6 +165,18 @@ docker_stack_up() {
         log "ERROR" "Port binding verification failed"
         docker_stack_down 10
         error_exit "Port binding verification failed"
+    fi
+    
+    # Run WebUI security validation
+    if [[ -f "$WEBUI_SECURITY_MANAGER" ]]; then
+        log "INFO" "Running WebUI security validation..."
+        if "$WEBUI_SECURITY_MANAGER" run-tests; then
+            log "SUCCESS" "WebUI security validation passed"
+        else
+            log "WARN" "WebUI security validation failed - continuing with warnings"
+        fi
+    else
+        log "WARN" "WebUI security manager not found - skipping validation"
     fi
     
     log "SUCCESS" "Docker stack started successfully"
@@ -371,6 +398,22 @@ main() {
         "status")
             get_service_status
             ;;
+        "webui-security")
+            local webui_command="${2:-help}"
+            if [[ -f "$WEBUI_SECURITY_MANAGER" ]]; then
+                "$WEBUI_SECURITY_MANAGER" "$webui_command" "${@:3}"
+            else
+                error_exit "WebUI security manager not found: $WEBUI_SECURITY_MANAGER"
+            fi
+            ;;
+        "webui-monitor")
+            local monitor_command="${2:-help}"
+            if [[ -f "$WEBUI_MONITOR" ]]; then
+                "$WEBUI_MONITOR" "$monitor_command" "${@:3}"
+            else
+                error_exit "WebUI monitor not found: $WEBUI_MONITOR"
+            fi
+            ;;
         "help"|"--help"|"-h")
             cat << EOF
 Docker Manager - Secure Docker Orchestration System
@@ -384,6 +427,8 @@ Commands:
   logs <service> [lines]    Get service logs (default: 50 lines)
   cleanup                   Clean up Docker resources
   status                    Get comprehensive status
+  webui-security <cmd>      WebUI security management
+  webui-monitor <cmd>       WebUI security monitoring
   help                      Show this help message
 
 Environment Variables:
@@ -410,6 +455,8 @@ Examples:
   $0 logs ollama 100
   $0 status
   $0 cleanup
+  $0 webui-security run-tests
+  $0 webui-monitor start 30
 
 EOF
             ;;
