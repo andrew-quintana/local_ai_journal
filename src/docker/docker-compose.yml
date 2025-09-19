@@ -36,10 +36,7 @@ volumes:
     
   journals-data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind,ro  # Read-only bind mount
-      device: ${VAULT_MOUNT_POINT:-${HOME}/Journals}
+    name: journals-data
 
 # Service definitions
 services:
@@ -52,7 +49,7 @@ services:
       - "11435:11434"  # Port mapping
     volumes:
       - ollama-data:/root/.ollama
-      - journals-data:/journals:ro  # Read-only journal access
+      - journals-data:/journals:rw  # Read-write journal access for markdown files
     networks:
       - journals-internal
     environment:
@@ -86,6 +83,30 @@ services:
       - SETGID
       - SETUID
 
+  # Vault File Server
+  vault-server:
+    image: python:3.11-slim
+    container_name: journals-vault-server
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8081"  # Localhost only binding
+    volumes:
+      - journals-data:/journals:ro  # Read-only access to vault files
+      - ./vault-file-server.py:/app/vault-file-server.py:ro
+    networks:
+      - journals-internal
+    command: ["python", "/app/vault-file-server.py"]
+    environment:
+      - PORT=8081
+    depends_on:
+      - ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/files"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   # Open WebUI Interface
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -94,8 +115,9 @@ services:
     ports:
       - "127.0.0.1:3000:8080"  # Localhost only binding
     volumes:
-      - journals-data:/journals:ro  # Read-only journal access
+      - journals-data:/journals:rw  # Read-write journal access for markdown files
       - webui-data:/app/backend/data  # Persistent WebUI data
+      - ./vault-integration.js:/app/static/vault-integration.js:ro  # Vault integration script
     networks:
       - journals-internal
     environment:
@@ -104,12 +126,14 @@ services:
       - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-TQ8wmRWLlIVhelwyM1tdHJkN1cpbrFNqxBsUn7kbJM0=}
       - WEBUI_JWT_SECRET_KEY=${WEBUI_JWT_SECRET_KEY:-kzIdNaWu8WsNF4oXP54QNC+k0JF4EGVu+bT2UzpkNsw=}
       
-      # Security Configuration
+      # Security Configuration - No Authentication for Local Single-User System
       - ENABLE_SIGNUP=false  # Disable user registration
-      - ENABLE_LOGIN_FORM=true
+      - ENABLE_LOGIN_FORM=false  # Disable login form
       - ENABLE_OAUTH_SIGNUP=false
       - WEBUI_DISABLE_SIGNUP=true
-      - WEBUI_DISABLE_LOGIN_FORM=false
+      - WEBUI_DISABLE_LOGIN_FORM=true  # Disable login form
+      - WEBUI_AUTH=false  # Disable authentication entirely
+      - ENABLE_AUTH=false  # Disable authentication entirely
       
       # Disable all external API integrations
       - ENABLE_OPENAI_API=false
@@ -163,9 +187,11 @@ services:
       - WEBUI_ORIGINS=http://127.0.0.1:${WEBUI_PORT:-3000}
       - CORS_ALLOW_ORIGIN=http://127.0.0.1:${WEBUI_PORT:-3000}
       
-      # File Upload Security
-      - ENABLE_FILE_UPLOAD=false
-      - MAX_FILE_SIZE=0
+      # File Upload and Document Management
+      - ENABLE_FILE_UPLOAD=true
+      - MAX_FILE_SIZE=10485760  # 10MB max file size
+      - ENABLE_DOCUMENT_UPLOAD=true
+      - ENABLE_DOCUMENT_MANAGEMENT=true
       
       # Session Security
       - SESSION_TIMEOUT=3600
@@ -174,6 +200,20 @@ services:
       # Logging Security
       - LOG_LEVEL=WARNING
       - ENABLE_DEBUG=false
+      
+      # Markdown Write Access Configuration
+      - WEBUI_JOURNAL_READ_ONLY=false
+      - WEBUI_JOURNAL_WRITE_ENABLED=true
+      - WEBUI_JOURNAL_ALLOWED_EXTENSIONS=md,markdown,txt
+      - WEBUI_JOURNAL_WRITE_MONITORING=true
+      - WEBUI_JOURNAL_BACKUP_ENABLED=true
+      
+      # Document and File Management
+      - ENABLE_DOCUMENT_VIEWER=true
+      - ENABLE_FILE_BROWSER=true
+      - ENABLE_DOCUMENT_SEARCH=true
+      - ENABLE_MARKDOWN_EDITOR=true
+      - ENABLE_TEMPLATE_MANAGEMENT=true
     depends_on:
       ollama:
         condition: service_healthy

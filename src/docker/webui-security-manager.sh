@@ -280,7 +280,12 @@ validate_ollama_connection() {
     
     # Verify Ollama is bound to localhost only
     local ollama_binding
-    ollama_binding=$(netstat -an 2>/dev/null | grep -c "127.0.0.1:$OLLAMA_PORT" || echo "0")
+    ollama_binding=$(netstat -an 2>/dev/null | grep -c "127.0.0.1:$OLLAMA_PORT" 2>/dev/null || echo "0")
+    
+    # Ensure ollama_binding is a number
+    if ! [[ "$ollama_binding" =~ ^[0-9]+$ ]]; then
+        ollama_binding=0
+    fi
     
     if [[ "$ollama_binding" -gt 0 ]]; then
         log "SUCCESS" "Ollama properly bound to localhost"
@@ -293,7 +298,12 @@ validate_ollama_connection() {
     
     # Check for external Ollama binding (security violation)
     local ollama_external
-    ollama_external=$(netstat -an 2>/dev/null | grep -c "0.0.0.0:$OLLAMA_PORT" || echo "0")
+    ollama_external=$(netstat -an 2>/dev/null | grep -c "0.0.0.0:$OLLAMA_PORT" 2>/dev/null || echo "0")
+    
+    # Ensure ollama_external is a number
+    if ! [[ "$ollama_external" =~ ^[0-9]+$ ]]; then
+        ollama_external=0
+    fi
     
     if [[ "$ollama_external" -gt 0 ]]; then
         log "ERROR" "Ollama bound to external interfaces (security violation)"
@@ -454,7 +464,12 @@ test_port_binding_security() {
     
     # Check WebUI port binding
     local webui_localhost
-    webui_localhost=$(netstat -an 2>/dev/null | grep -c "127.0.0.1:$WEBUI_PORT" || echo "0")
+    webui_localhost=$(netstat -an 2>/dev/null | grep -c "127.0.0.1:$WEBUI_PORT" 2>/dev/null || echo "0")
+    
+    # Ensure webui_localhost is a number
+    if ! [[ "$webui_localhost" =~ ^[0-9]+$ ]]; then
+        webui_localhost=0
+    fi
     
     if [[ "$webui_localhost" -gt 0 ]]; then
         log "SUCCESS" "WebUI bound to localhost only"

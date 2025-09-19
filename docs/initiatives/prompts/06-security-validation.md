@@ -16,10 +16,12 @@ Create comprehensive security validation system with automated checks and clear 
 - Check port binding security
 
 ### File System Security
-- Verify read-only enforcement
+- Verify read-only enforcement for non-markdown files
 - Test file permission restrictions
 - Validate vault encryption
 - Check access control effectiveness
+- Verify markdown file write access (if Phase 5.5 implemented)
+- Test file type validation for write operations
 
 ### Container Security
 - Verify privilege restrictions
@@ -54,16 +56,25 @@ audit_file_permissions() {
     local journal_path="/journals"
     local violations=0
     
-    # Test write access (should fail)
-    if touch "$journal_path/security_test" 2>/dev/null; then
-        echo "SECURITY VIOLATION: Write access to journals detected"
+    # Test write access to non-markdown files (should fail)
+    if touch "$journal_path/security_test.txt" 2>/dev/null; then
+        echo "SECURITY VIOLATION: Write access to non-markdown files detected"
         ((violations++))
     fi
     
-    # Check mount options
-    if ! mount | grep "$journal_path" | grep -q "ro"; then
-        echo "SECURITY VIOLATION: Journals not mounted read-only"
-        ((violations++))
+    # Test write access to markdown files (should succeed if Phase 5.5 implemented)
+    if touch "$journal_path/test.md" 2>/dev/null; then
+        echo "INFO: Markdown file write access enabled (Phase 5.5)"
+        rm -f "$journal_path/test.md"
+    else
+        echo "INFO: Markdown file write access disabled (Phase 5.5 not implemented)"
+    fi
+    
+    # Check mount options (should be rw if Phase 5.5 implemented)
+    if mount | grep "$journal_path" | grep -q "ro"; then
+        echo "INFO: Journals mounted read-only (Phase 5.5 not implemented)"
+    elif mount | grep "$journal_path" | grep -q "rw"; then
+        echo "INFO: Journals mounted read-write (Phase 5.5 implemented)"
     fi
     
     return $violations

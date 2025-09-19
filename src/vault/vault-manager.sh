@@ -151,17 +151,34 @@ vault_exists() {
 
 # Get vault status
 vault_status() {
-    if ! vault_exists; then
+    # Check if vault exists
+    if ! vault_exists >/dev/null 2>&1; then
         echo "unmounted"
         return 0
     fi
     
-    # Check if vault is mounted
-    if mount | grep -q "$VAULT_MOUNT_POINT"; then
-        echo "mounted"
-    else
+    # Check if vault is actually mounted as an encrypted image
+    # First check if the mount point exists in mount table
+    if ! mount | grep -q "$VAULT_MOUNT_POINT" 2>/dev/null; then
         echo "unmounted"
+        return 0
     fi
+    
+    # Verify it's actually an encrypted vault by checking hdiutil info
+    # This ensures we have a real encrypted mount, not just a directory
+    # Get the device path for this mount point
+    local device_path
+    device_path=$(mount | grep "$VAULT_MOUNT_POINT" | awk '{print $1}' 2>/dev/null)
+    
+    # Check if the mount point or device appears in hdiutil info
+    local hdiutil_output
+    hdiutil_output=$(hdiutil info 2>/dev/null)
+    if ! echo "$hdiutil_output" | grep -q -E "($VAULT_MOUNT_POINT|$device_path)"; then
+        echo "unmounted"
+        return 0
+    fi
+    
+    echo "mounted"
 }
 
 # Create vault with atomic operation
@@ -235,6 +252,14 @@ vault_mount() {
         error_exit "Vault does not exist at $VAULT_IMAGE_PATH"
     fi
     
+    # Check if vault image is valid
+    log "DEBUG" "Checking vault image integrity..."
+    local imageinfo_output
+    imageinfo_output=$(hdiutil imageinfo "$VAULT_IMAGE_PATH" 2>/dev/null)
+    if [[ $? -ne 0 ]]; then
+        error_exit "Vault image appears to be corrupted or invalid: $VAULT_IMAGE_PATH"
+    fi
+    
     # Check if already mounted
     if [[ "$(vault_status)" == "mounted" ]]; then
         log "WARN" "Vault is already mounted"
@@ -249,13 +274,45 @@ vault_mount() {
         fi
     fi
     
-    # Get passphrase interactively
+    # Get passphrase securely
     local passphrase
-    passphrase=$(get_passphrase "Enter vault passphrase: ")
     
-    # Mount the vault
+    # Check if passphrase is provided via environment variable (for automation)
+    if [[ -n "${VAULT_PASSPHRASE:-}" ]]; then
+        log "INFO" "Using passphrase from environment variable"
+        passphrase="$VAULT_PASSPHRASE"
+    else
+        # Interactive passphrase entry - use a more robust method
+        log "INFO" "Interactive passphrase entry required"
+        echo -n "Enter vault passphrase: "
+        
+        # Use a more reliable method for reading passphrase
+        # Try read -s first, then fallback to regular read
+        if ! read -s passphrase 2>/dev/null; then
+            # Fallback: regular read (will echo, but works in all contexts)
+            read passphrase
+        fi
+        echo
+    fi
+    
+    # Validate passphrase
+    if [[ -z "$passphrase" ]]; then
+        error_exit "Passphrase cannot be empty"
+    fi
+    
+    # Security check: Ensure passphrase is not empty or just whitespace
+    if [[ -z "${passphrase// }" ]]; then
+        error_exit "Passphrase cannot be empty or just whitespace"
+    fi
+    
+    # Mount the vault using secure passphrase passing
     log "INFO" "Mounting vault..."
-    if ! hdiutil attach -stdinpass -mountpoint "$VAULT_MOUNT_POINT" <<< "$passphrase" "$VAULT_IMAGE_PATH"; then
+    log "DEBUG" "Attempting to mount vault image: $VAULT_IMAGE_PATH"
+    log "DEBUG" "Mount point: $VAULT_MOUNT_POINT"
+    
+    # Use the most reliable method: printf with piped input
+    if ! printf "%s" "$passphrase" | hdiutil attach -stdinpass -mountpoint "$VAULT_MOUNT_POINT" "$VAULT_IMAGE_PATH" 2>&1; then
+        log "ERROR" "hdiutil attach command failed"
         error_exit "Failed to mount vault. Check passphrase and vault integrity."
     fi
     
@@ -425,5 +482,7 @@ EOF
     esac
 }
 
-# Run main function with all arguments
-main "$@"
+# Only run main function if script is executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

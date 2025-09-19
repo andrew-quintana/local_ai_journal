@@ -163,6 +163,29 @@ efficient_file_operations() {
     # Use find with -maxdepth for efficient directory traversal
     find "$source_dir" -maxdepth 2 -type f -name "*.md" -exec process_file {} \;
 }
+
+# Optimized write operations for markdown files (Phase 5.5)
+efficient_markdown_operations() {
+    local journal_dir=$1
+    local operation=$2
+    
+    case $operation in
+        "backup")
+            # Efficient backup of markdown files only
+            find "$journal_dir" -name "*.md" -o -name "*.markdown" | \
+            xargs -I {} cp {} "/tmp/backup/$(basename {})"
+            ;;
+        "validate")
+            # Validate markdown files efficiently
+            find "$journal_dir" -name "*.md" -o -name "*.markdown" | \
+            xargs -I {} validate_markdown_content "{}"
+            ;;
+        "monitor")
+            # Monitor markdown file changes efficiently
+            inotifywait -m "$journal_dir" -e modify,create,delete --include=".*\.md$" 2>/dev/null
+            ;;
+    esac
+}
 ```
 
 ### Smart Caching Strategies

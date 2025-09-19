@@ -109,21 +109,40 @@ set_minimal_permissions() {
 
 ### Read-Only Access Enforcement
 ```bash
-# Enforce read-only access
+# Enforce read-only access for non-markdown files
 enforce_readonly() {
     local path=$1
     
-    # Mount as read-only
-    if ! mount | grep "$path" | grep -q "ro"; then
-        echo "ERROR: Path not mounted read-only" >&2
-        return 1
-    fi
-    
-    # Test write access (should fail)
-    if touch "$path/test_write" 2>/dev/null; then
-        echo "ERROR: Write access detected on read-only path" >&2
-        rm -f "$path/test_write"
-        return 1
+    # Check if Phase 5.5 is implemented (read-write for markdown)
+    if mount | grep "$path" | grep -q "rw"; then
+        echo "INFO: Read-write access enabled (Phase 5.5)"
+        # Test write access to non-markdown files (should fail)
+        if touch "$path/test_write.txt" 2>/dev/null; then
+            echo "ERROR: Write access to non-markdown files detected" >&2
+            rm -f "$path/test_write.txt"
+            return 1
+        fi
+        
+        # Test write access to markdown files (should succeed)
+        if ! touch "$path/test_write.md" 2>/dev/null; then
+            echo "ERROR: Write access to markdown files not working" >&2
+            return 1
+        else
+            rm -f "$path/test_write.md"
+        fi
+    else
+        # Original read-only enforcement
+        if ! mount | grep "$path" | grep -q "ro"; then
+            echo "ERROR: Path not mounted read-only" >&2
+            return 1
+        fi
+        
+        # Test write access (should fail)
+        if touch "$path/test_write" 2>/dev/null; then
+            echo "ERROR: Write access detected on read-only path" >&2
+            rm -f "$path/test_write"
+            return 1
+        fi
     fi
 }
 ```

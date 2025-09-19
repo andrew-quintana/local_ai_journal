@@ -18,8 +18,10 @@ This document describes the comprehensive security implementation for the Open W
 - **DNS Isolation**: External DNS resolution blocked
 
 ### File System Security
-- **Read-Only Journal Mount**: Journal directory mounted with read-only permissions
-- **No Write Access**: Absolute prevention of journal file modification
+- **Controlled Write Access**: Markdown files can be modified by AI models
+- **File Type Restrictions**: Only .md and .markdown files can be written
+- **Path Validation**: Write access restricted to journal directory only
+- **Content Validation**: Basic security checks on markdown content
 - **Access Monitoring**: Real-time monitoring of file access attempts
 - **Permission Enforcement**: Strict file system permission controls
 
@@ -37,7 +39,8 @@ This document describes the comprehensive security implementation for the Open W
 
 Enhanced WebUI service configuration with:
 - Localhost-only port binding
-- Read-only journal volume mount
+- Read-write journal volume mount for markdown files
+- File type restrictions for write access
 - Disabled external API integrations
 - Security-optimized environment variables
 - Resource limits and security constraints
@@ -47,7 +50,7 @@ open-webui:
   ports:
     - "127.0.0.1:3000:8080"  # Localhost only
   volumes:
-    - journals-data:/journals:ro  # Read-only
+    - journals-data:/journals:rw  # Read-write for markdown files
   environment:
     - WEBUI_DISABLE_SIGNUP=true
     - ENABLE_FILE_UPLOAD=false
@@ -105,12 +108,56 @@ Real-time security monitoring including:
 - Performance metrics tracking
 - Log management and rotation
 
-### 5. Security Validation Tests
+### 5. Markdown Write Access Manager
+
+**File**: `src/docker/markdown-write-manager.sh`
+
+Comprehensive write access management for markdown files:
+- File type validation (markdown only)
+- Path validation (journal directory only)
+- Content validation (security checks)
+- Automatic backup before modifications
+- Rollback capability
+- Write operation monitoring
+- Security violation logging
+
+**Key Functions**:
+- `validate_file_type()` - Validate file extension
+- `validate_write_path()` - Validate file path
+- `validate_markdown_content()` - Check content security
+- `secure_write()` - Secure write operation
+- `create_backup()` - Create file backup
+- `rollback_file()` - Rollback from backup
+- `monitor_write_operations()` - Monitor file changes
+
+### 6. Write Operation Monitor
+
+**File**: `src/docker/write-monitor.sh`
+
+Real-time monitoring for write operations:
+- File system monitoring (inotify or polling)
+- Security violation detection
+- Performance metrics tracking
+- Log management and rotation
+- Alert system for violations
+- Comprehensive reporting
+
+**Key Features**:
+- Real-time file change detection
+- Security violation alerting
+- Performance monitoring
+- Log rotation and cleanup
+- Monitoring reports
+
+### 7. Security Validation Tests
 
 **File**: `tests/test-security-validation.sh`
 
 Enhanced security test suite with WebUI-specific tests:
-- Read-only mount verification
+- Read-write mount verification for markdown files
+- File type validation testing
+- Path validation testing
+- Content validation testing
 - Network isolation testing
 - Container security validation
 - Port binding security
@@ -118,20 +165,38 @@ Enhanced security test suite with WebUI-specific tests:
 
 ## 🔍 **Security Validation Functions**
 
-### Read-Only Access Verification
+### Markdown Write Access Verification
 
 ```bash
-verify_readonly_access() {
+verify_markdown_write_access() {
     local journal_path="/journals"
+    local test_file="$journal_path/test_write.md"
     
-    # Test write attempt (should fail)
-    if touch "$journal_path/test_write" 2>/dev/null; then
-        echo "ERROR: Write access detected!"
-        return 1
-    else
-        echo "SUCCESS: Read-only access confirmed"
+    # Test markdown file write (should succeed)
+    if echo "# Test" > "$test_file" 2>/dev/null; then
+        echo "SUCCESS: Markdown write access confirmed"
+        rm -f "$test_file"
         return 0
+    else
+        echo "ERROR: Markdown write access failed!"
+        return 1
     fi
+}
+
+verify_file_type_restrictions() {
+    local journal_path="/journals"
+    local test_files=("$journal_path/test.txt" "$journal_path/test.json" "$journal_path/test.sh")
+    
+    for test_file in "${test_files[@]}"; do
+        if echo "test" > "$test_file" 2>/dev/null; then
+            echo "ERROR: Unauthorized file type write access detected: $test_file"
+            rm -f "$test_file"
+            return 1
+        fi
+    done
+    
+    echo "SUCCESS: File type restrictions confirmed"
+    return 0
 }
 ```
 
@@ -153,13 +218,19 @@ verify_network_isolation() {
 ## 🚫 **Security Constraints**
 
 ### Absolute Restrictions
-- **NEVER** allow write access to journal files
+- **NEVER** allow write access to non-markdown files
+- **NEVER** allow write access outside journal directory
 - **NEVER** enable external network access
 - **NEVER** store journal content in WebUI logs
 - **NEVER** allow file uploads to journal directory
+- **NEVER** allow write access to hidden or system files
 
 ### Validation Requirements
-- Verify no write access to journals
+- Verify markdown write access works correctly
+- Verify non-markdown files remain read-only
+- Test file type validation
+- Test path validation
+- Test content validation
 - Test network isolation effectiveness
 - Confirm all external access blocked
 - Monitor and log all access attempts

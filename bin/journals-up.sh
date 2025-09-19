@@ -19,6 +19,12 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 readonly VAULT_MANAGER="$PROJECT_ROOT/src/vault/vault-manager.sh"
 readonly DOCKER_MANAGER="$PROJECT_ROOT/src/docker/docker-manager.sh"
+readonly UX_LIB="$PROJECT_ROOT/lib/ux-enhancements.sh"
+
+# Load UX enhancements
+if [[ -f "$UX_LIB" ]]; then
+    source "$UX_LIB"
+fi
 
 # System requirements
 readonly MIN_MEMORY_GB=8
@@ -26,6 +32,9 @@ readonly MIN_DISK_SPACE_GB=10
 readonly REQUIRED_PORTS=("11434" "3000")
 readonly HEALTH_CHECK_TIMEOUT="${HEALTH_CHECK_TIMEOUT:-120}"
 readonly GRACEFUL_SHUTDOWN_TIMEOUT="${GRACEFUL_SHUTDOWN_TIMEOUT:-30}"
+
+# Vault configuration
+readonly VAULT_MOUNT_POINT="${VAULT_MOUNT_POINT:-${HOME}/Journals}"
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -122,10 +131,22 @@ check_system_resources() {
     fi
     log "SUCCESS" "Memory check passed: ${memory_gb}GB available"
     
-    # Check disk space
-    local vault_mount_point="${VAULT_MOUNT_POINT:-${HOME}/Journals}"
+    # Check disk space (check home directory since vault isn't mounted yet)
     local available_space_gb
-    available_space_gb=$(df -BG "$vault_mount_point" 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/G//' || echo "0")
+    if command_exists df; then
+        # Try different df options for different systems
+        if df -BG "$HOME" >/dev/null 2>&1; then
+            # Linux/BSD with -BG option
+            available_space_gb=$(df -BG "$HOME" 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/G//' || echo "0")
+        else
+            # macOS/BSD without -BG option, convert from blocks
+            local available_blocks
+            available_blocks=$(df "$HOME" 2>/dev/null | tail -1 | awk '{print $4}' || echo "0")
+            available_space_gb=$((available_blocks / 1024 / 1024 / 2))  # Convert 512-byte blocks to GB
+        fi
+    else
+        available_space_gb=100  # Assume sufficient space if df not available
+    fi
     
     if [[ $available_space_gb -lt $MIN_DISK_SPACE_GB ]]; then
         error_exit "Insufficient disk space: ${available_space_gb}GB available, ${MIN_DISK_SPACE_GB}GB required"
@@ -217,16 +238,28 @@ mount_vault_interactive() {
         add_startup_step "vault_created" "vault_cleanup"
     fi
     
-    # Mount vault
+    # SECURITY: Always require authentication - never skip password prompt
+    # Check if vault is already mounted and force unmount for security
+    log "DEBUG" "Checking if vault is mounted at: $VAULT_MOUNT_POINT"
+    if mount | grep -q "$VAULT_MOUNT_POINT" 2>/dev/null; then
+        log "WARN" "Vault mount point exists - forcing unmount for security"
+        log "INFO" "Unmounting existing vault to require fresh authentication"
+        if ! "$VAULT_MANAGER" unmount >/dev/null 2>&1; then
+            log "WARN" "Failed to unmount existing vault, continuing with mount attempt"
+        else
+            log "SUCCESS" "Existing vault unmounted successfully"
+        fi
+    fi
+    
+    # Mount vault with fresh authentication (always required for security)
+    log "INFO" "Mounting vault with fresh authentication..."
     if ! "$VAULT_MANAGER" mount; then
         error_exit "Failed to mount vault"
     fi
     
-    # Verify vault is mounted
-    local vault_status
-    vault_status=$("$VAULT_MANAGER" status)
-    if [[ "$vault_status" != "mounted" ]]; then
-        error_exit "Vault mount verification failed. Status: $vault_status"
+    # Verify vault is mounted using direct mount check
+    if ! mount | grep -q "$VAULT_MOUNT_POINT" 2>/dev/null; then
+        error_exit "Vault mount verification failed - not found in mount table"
     fi
     
     add_startup_step "vault_mounted" "vault_unmount"
@@ -299,8 +332,8 @@ manage_models() {
         return 1
     fi
     
-    # Ensure model availability with fallback support
-    local model_name="${OLLAMA_MODEL:-llama3.2:3b}"
+        # Ensure model availability with fallback support
+        local model_name="${OLLAMA_MODEL:-qwen2.5:3b-instruct}"
     if ! "$model_manager" ensure "$model_name"; then
         log "ERROR" "Failed to ensure model availability: $model_name"
         return 1
@@ -381,7 +414,7 @@ Options:
 Environment Variables:
   HEALTH_CHECK_TIMEOUT      Health check timeout in seconds (default: 120)
   GRACEFUL_SHUTDOWN_TIMEOUT Graceful shutdown timeout in seconds (default: 30)
-  OLLAMA_MODEL              Default AI model to use (default: llama3.2:3b)
+  OLLAMA_MODEL              Default AI model to use (default: qwen2.5:3b-instruct)
   VAULT_MOUNT_POINT         Vault mount point (default: ~/Journals)
 
 Features:
@@ -435,8 +468,11 @@ main() {
             ;;
     esac
     
+    show_banner "Journals Infrastructure Startup" "2.0"
     log "INFO" "Starting Journals Infrastructure..."
-    echo -e "${CYAN}========================================${NC}"
+    
+    # Enable debug logging for troubleshooting
+    export LOG_LEVEL="DEBUG"
     
     # Execute startup sequence
     startup_preflight_checks
@@ -449,8 +485,7 @@ main() {
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     
-    log "SUCCESS" "Journals Infrastructure startup completed in ${duration} seconds"
-    echo -e "${CYAN}========================================${NC}"
+    show_completion "Journals Infrastructure Startup" "${duration} seconds"
 }
 
 # Handle script interruption

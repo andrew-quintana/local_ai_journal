@@ -1,0 +1,69 @@
+=== SECURITY VALIDATION REPORT ===
+Generated: Thu Sep 18 19:46:30 PDT 2025
+System: Darwin MacBook-Air.local 24.6.0 Darwin Kernel Version 24.6.0: Mon Jul 14 11:30:51 PDT 2025; root:xnu-11417.140.69~1/RELEASE_ARM64_T8112 arm64
+Hostname: MacBook-Air.local
+
+=== EXECUTIVE SUMMARY ===
+Total Checks: 19
+Passed: 12
+Failed: 1
+Warnings: 12
+Violations: 1
+
+SECURITY STATUS: ⚠️  MINOR ISSUES
+
+=== NETWORK SECURITY ===
+Port Binding Analysis:
+  Port 3000: Not bound
+  Port 11435: Not bound
+
+=== FILE SYSTEM SECURITY ===
+Journal Directory: /journals
+Status: Not accessible
+
+=== CONTAINER SECURITY ===
+Container Status:
+  journals-webui: Up 35 minutes (healthy)
+  journals-ollama: Up 35 minutes (healthy)
+
+=== RECOMMENDATIONS ===
+1. Address security violations immediately
+2. Review network binding configuration
+3. Verify file system permissions
+4. Check container security settings
+5. Review warnings for potential improvements
+6. Consider enabling additional security features
+
+=== DETAILED LOG ===
+=== SECURITY VALIDATION SESSION STARTED ===
+Timestamp: Thu Sep 18 19:46:29 PDT 2025
+System: Darwin MacBook-Air.local 24.6.0 Darwin Kernel Version 24.6.0: Mon Jul 14 11:30:51 PDT 2025; root:xnu-11417.140.69~1/RELEASE_ARM64_T8112 arm64
+
+[0;34m[INFO][0m Security validation system initialized
+[0;34m[INFO][0m Log directory: /Users/aq_home/1Projects/local_journal/logs
+[0;34m[INFO][0m Report directory: /Users/aq_home/1Projects/local_journal/security-reports
+[0;34m[INFO][0m Configuration loaded from /Users/aq_home/1Projects/local_journal/src/docker/security-validation.conf
+[0;34m[INFO][0m Starting comprehensive security validation...
+[0;34m[INFO][0m Starting network isolation validation...
+[0;32m[SUCCESS][0m Port 3000 properly bound to localhost only
+[0;32m[SUCCESS][0m Port 11435 properly bound to localhost only
+[0;32m[SUCCESS][0m Custom network configuration detected
+[0;32m[SUCCESS][0m No external connections on restricted ports
+[0;34m[INFO][0m Starting file system security audit...
+[0;31m[ERROR][0m Journal directory not found: /journals
+[0;32m[SUCCESS][0m Non-markdown file write access properly restricted: security_test.txt
+[0;32m[SUCCESS][0m Non-markdown file write access properly restricted: test.json
+[0;32m[SUCCESS][0m Non-markdown file write access properly restricted: test.sh
+[1;33m[WARNING][0m Markdown file write access disabled (Phase 5.5 not implemented)
+[1;33m[WARNING][0m Mount status unclear for journal directory
+[0;32m[SUCCESS][0m Journal directory permissions secure: 000
+[0;34m[INFO][0m Starting container security verification...
+[0;32m[SUCCESS][0m Container journals-webui is running
+[0;32m[SUCCESS][0m Container journals-ollama is running
+[1;33m[WARNING][0m Some containers may be running as root
+[1;33m[WARNING][0m Security options may not be properly configured
+[1;33m[WARNING][0m Memory limits not properly configured
+[1;33m[WARNING][0m Read-only filesystem not enabled
+[0;34m[INFO][0m Checking encryption status...
+[0;32m[SUCCESS][0m Secret keys configured
+[0;32m[SUCCESS][0m JWT secret configured

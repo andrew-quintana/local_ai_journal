@@ -103,6 +103,14 @@ detect_and_recover() {
             show_info "Checking for existing services..."
             # Check and handle port conflicts
             ;;
+        "write_access_denied")
+            show_error "Write access denied for file type"
+            show_info "Only markdown files (.md, .markdown) can be modified"
+            ;;
+        "file_type_validation_failed")
+            show_error "File type not allowed for modification"
+            show_info "Only markdown files can be edited by AI models"
+            ;;
     esac
 }
 ```

@@ -18,6 +18,12 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 readonly VAULT_MANAGER="$PROJECT_ROOT/src/vault/vault-manager.sh"
 readonly DOCKER_MANAGER="$PROJECT_ROOT/src/docker/docker-manager.sh"
+readonly UX_LIB="$PROJECT_ROOT/lib/ux-enhancements.sh"
+
+# Load UX enhancements
+if [[ -f "$UX_LIB" ]]; then
+    source "$UX_LIB"
+fi
 
 # Shutdown configuration
 readonly GRACEFUL_SHUTDOWN_TIMEOUT="${GRACEFUL_SHUTDOWN_TIMEOUT:-30}"
@@ -424,8 +430,8 @@ main() {
             ;;
     esac
     
+    show_banner "Journals Infrastructure Shutdown" "2.0"
     log "INFO" "Stopping Journals Infrastructure..."
-    echo -e "${CYAN}========================================${NC}"
     
     # Execute shutdown sequence
     shutdown_containers_graceful "$timeout"
@@ -438,8 +444,7 @@ main() {
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     
-    log "SUCCESS" "Journals Infrastructure shutdown completed in ${duration} seconds"
-    echo -e "${CYAN}========================================${NC}"
+    show_completion "Journals Infrastructure Shutdown" "${duration} seconds"
 }
 
 # Handle script interruption

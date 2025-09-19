@@ -126,6 +126,9 @@ run_integration_tests() {
         "security_validation")
             test_security_validation_suite
             ;;
+        "read_write_access")
+            test_read_write_access_validation
+            ;;
     esac
 }
 ```
@@ -203,6 +206,8 @@ test_security_boundaries() {
     test_readonly_enforcement
     test_permission_restrictions
     test_vault_encryption
+    test_markdown_write_access
+    test_file_type_validation
     
     # Test container boundaries
     test_privilege_restrictions
@@ -228,6 +233,51 @@ run_penetration_tests() {
     
     # Test for data exfiltration
     test_data_exfiltration
+}
+
+### Read/Write Access Testing
+```bash
+# Test read/write access validation (Phase 5.5)
+test_read_write_access_validation() {
+    echo "Testing read/write access validation..."
+    
+    local journal_path="/journals"
+    local test_results=0
+    
+    # Test markdown file write access
+    if touch "$journal_path/test_write.md" 2>/dev/null; then
+        echo "✓ Markdown file write access working"
+        rm -f "$journal_path/test_write.md"
+    else
+        echo "✗ Markdown file write access failed"
+        ((test_results++))
+    fi
+    
+    # Test non-markdown file write access (should fail)
+    if touch "$journal_path/test_write.txt" 2>/dev/null; then
+        echo "✗ Non-markdown file write access should be blocked"
+        rm -f "$journal_path/test_write.txt"
+        ((test_results++))
+    else
+        echo "✓ Non-markdown file write access properly blocked"
+    fi
+    
+    # Test file type validation
+    if validate_file_type "$journal_path/test.md"; then
+        echo "✓ File type validation working for markdown"
+    else
+        echo "✗ File type validation failed for markdown"
+        ((test_results++))
+    fi
+    
+    if ! validate_file_type "$journal_path/test.txt"; then
+        echo "✓ File type validation working for non-markdown"
+    else
+        echo "✗ File type validation failed for non-markdown"
+        ((test_results++))
+    fi
+    
+    return $test_results
 }
 ```
 

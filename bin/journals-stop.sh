@@ -1,87 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LOGFILE="${LOGFILE:-/tmp/journals-start.log}"
-log() { printf '[%(%F %T)T][start] %s\n' -1 "$*" >> "$LOGFILE"; }
+# Load UX enhancements
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+UX_LIB="$PROJECT_ROOT/lib/ux-enhancements.sh"
 
-IMAGE="${HOME}/JournalsVault.sparseimage"
-MOUNTPOINT="${HOME}/Journals"
-
-log "===== journals-start.sh begin ====="
-log "Using image: ${IMAGE}"
-log "Mountpoint: ${MOUNTPOINT}"
-
-if [[ ! -f "$IMAGE" ]]; then
-  log "Encrypted image not found at $IMAGE"
-  echo "Create with: hdiutil create -type SPARSE -fs APFS -encryption AES-256 -volname JournalsVault -size 5g ${IMAGE}"
-  exit 1
+if [[ -f "$UX_LIB" ]]; then
+    source "$UX_LIB"
 fi
-
-mkdir -p "$MOUNTPOINT"
-chmod 700 "$MOUNTPOINT"
-
-# Detach any previous mounts of this image or mountpoint to avoid 'Resource busy'
-EXISTING_DEV="$(hdiutil info | awk -v img="$IMAGE" '
-  /image-path/ { ip=$3 }
-  $1 ~ "^/dev/disk" { dev=$1 }
-  $0 ~ img { print dev }
-')"
-if [[ -n "${EXISTING_DEV}" ]]; then
-  log "Found existing device ${EXISTING_DEV} for image; detaching..."
-  hdiutil detach "${EXISTING_DEV}" >/dev/null 2>&1 || true
-fi
-
-if mount | grep -q "on ${MOUNTPOINT} "; then
-  log "Mountpoint already in use; detaching ${MOUNTPOINT}..."
-  hdiutil detach "${MOUNTPOINT}" >/dev/null 2>&1 || true
-fi
-
-# Prompt for passphrase
-read -s -p "Vault passphrase: " PASS; echo
-
-log "Attaching image..."
-if ! echo -n "$PASS" | hdiutil attach "$IMAGE" -stdinpass -mountpoint "$MOUNTPOINT" -nobrowse >/dev/null 2>&1; then
-  log "Attach failed; attempting forced cleanup and retry..."
-  DEV_NODE="$(hdiutil info | awk -v mp="${MOUNTPOINT}" '
-    /Apple_APFS/ {dev=$1}
-    $0 ~ mp {print dev}
-  ')"
-  if [[ -n "${DEV_NODE}" ]]; then
-    log "Force-detaching ${DEV_NODE}..."
-    hdiutil detach -force "${DEV_NODE}" >/dev/null 2>&1 || true
-  fi
-  log "Retrying attach..."
-  echo -n "$PASS" | hdiutil attach "$IMAGE" -stdinpass -mountpoint "$MOUNTPOINT" -nobrowse >/dev/null
-fi
-log "Mounted at ${MOUNTPOINT}"
-
-# Disable Spotlight indexing on mount
-mdutil -i off "$MOUNTPOINT" >/dev/null 2>&1 || true
-
-# Start Ollama if not running
-if pgrep -x ollama >/dev/null; then
-  log "Ollama already running."
-else
-  log "Starting Ollama..."
-  nohup ollama serve >/tmp/ollama.log 2>&1 &
-  sleep 1
-  log "Ollama started (see /tmp/ollama.log)."
-fi
-
-log "===== journals-start.sh done ====="
-echo "Journals mounted at ${MOUNTPOINT} and Ollama is running."
-#!/usr/bin/env bash
-set -euo pipefail
 
 MOUNTPOINT="${HOME}/Journals"
 
+# Display banner
+show_banner "Journals Shutdown" "1.0"
+
 if mount | grep -q "on ${MOUNTPOINT} "; then
-  echo "Detaching journals vault..."
+  show_progress_indicator "Detaching journals vault..."
+  
   # Try a normal detach first
   if hdiutil detach "${MOUNTPOINT}" >/dev/null 2>&1; then
-    echo "Detached."
+    show_success "Vault detached successfully"
+    show_completion "Journals Shutdown" "Vault unmounted"
     exit 0
   fi
+
+  show_warning "Normal detach failed; attempting forced detach..."
 
   # If normal detach fails (resource busy), try to find and force-detach the device
   DEV_NODE="$(hdiutil info | awk -v mp="${MOUNTPOINT}" '
@@ -90,14 +34,27 @@ if mount | grep -q "on ${MOUNTPOINT} "; then
   ')"
 
   if [[ -n "${DEV_NODE}" ]]; then
-    hdiutil detach -force "${DEV_NODE}" >/dev/null 2>&1 && { echo "Detached (forced)."; exit 0; }
+    show_progress_indicator "Force-detaching device ${DEV_NODE}..."
+    if hdiutil detach -force "${DEV_NODE}" >/dev/null 2>&1; then
+      show_success "Vault detached (forced)"
+      show_completion "Journals Shutdown" "Vault unmounted (forced)"
+      exit 0
+    fi
   fi
 
   # Fallback: force detach by mountpoint
-  hdiutil detach -force "${MOUNTPOINT}" >/dev/null 2>&1 && { echo "Detached (forced)."; exit 0; }
+  show_progress_indicator "Force-detaching by mountpoint..."
+  if hdiutil detach -force "${MOUNTPOINT}" >/dev/null 2>&1; then
+    show_success "Vault detached (forced by mountpoint)"
+    show_completion "Journals Shutdown" "Vault unmounted (forced)"
+    exit 0
+  fi
 
-  echo "Warning: could not detach ${MOUNTPOINT}. Close any apps using it (Finder, editors, terminals) and try again."
+  show_error "Could not detach ${MOUNTPOINT}"
+  show_info "Close any apps using it (Finder, editors, terminals) and try again"
+  show_help "shutdown"
   exit 1
 else
-  echo "Vault not mounted."
+  show_info "Vault not mounted"
+  show_completion "Journals Shutdown" "No action needed"
 fi

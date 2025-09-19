@@ -26,13 +26,21 @@ fi
 
 # Default configuration
 OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1}"
-OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+OLLAMA_PORT="${OLLAMA_PORT:-11435}"
 OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://${OLLAMA_HOST}:${OLLAMA_PORT}}"
-DEFAULT_MODEL="${DEFAULT_MODEL:-llama3.2:3b}"
-FALLBACK_MODELS="${FALLBACK_MODELS:-llama3.2:1b,phi3:mini}"
+DEFAULT_MODEL="${DEFAULT_MODEL:-qwen2.5:3b-instruct}"
+FALLBACK_MODELS="${FALLBACK_MODELS:-llama3.2:1b}"
 MAX_MEMORY_GB="${MAX_MEMORY_GB:-4}"
 MODEL_CACHE_DIR="${MODEL_CACHE_DIR:-${PROJECT_ROOT}/.model-cache}"
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
+
+# Optimized run parameters for Llama 3.2 1B models
+OLLAMA_NUM_THREADS="${OLLAMA_NUM_THREADS:-4}"
+OLLAMA_NGL="${OLLAMA_NGL:-999}"
+OLLAMA_QUANTIZATION="${OLLAMA_QUANTIZATION:-q3_K_M}"
+OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-1024}"
+OLLAMA_NUM_BATCH="${OLLAMA_NUM_BATCH:-256}"
+OLLAMA_THREADS="${OLLAMA_THREADS:-4}"
 
 # Logging functions
 log() {
@@ -256,6 +264,41 @@ model_preload() {
     fi
 }
 
+model_run_optimized() {
+    local model_name="$1"
+    
+    if ! model_exists "$model_name"; then
+        log "ERROR" "Model '$model_name' does not exist"
+        return 1
+    fi
+    
+    log "INFO" "Running model '$model_name' with optimized parameters"
+    
+    # Set environment variables for optimized performance
+    export OLLAMA_NUM_THREADS="$OLLAMA_NUM_THREADS"
+    
+    # Run model with optimized parameters
+    local run_cmd="ollama run $model_name"
+    run_cmd="$run_cmd -ngl $OLLAMA_NGL"
+    run_cmd="$run_cmd -q $OLLAMA_QUANTIZATION"
+    run_cmd="$run_cmd --num-ctx $OLLAMA_NUM_CTX"
+    run_cmd="$run_cmd --num-batch $OLLAMA_NUM_BATCH"
+    run_cmd="$run_cmd -t $OLLAMA_THREADS"
+    
+    log "DEBUG" "Running command: $run_cmd"
+    
+    # Execute the optimized run command
+    eval "$run_cmd"
+    
+    if [[ $? -eq 0 ]]; then
+        log "SUCCESS" "Model '$model_name' started with optimized parameters"
+        return 0
+    else
+        log "ERROR" "Failed to start model '$model_name' with optimized parameters"
+        return 1
+    fi
+}
+
 model_unload() {
     local model_name="$1"
     
@@ -413,6 +456,9 @@ main() {
         "preload")
             model_preload "$@"
             ;;
+        "run-optimized")
+            model_run_optimized "$@"
+            ;;
         "unload")
             model_unload "$@"
             ;;
@@ -432,7 +478,7 @@ main() {
             monitor_resources
             ;;
         *)
-            echo "Usage: $0 {exists|list|download|validate|switch|preload|unload|cleanup|fallback|ensure|health|monitor} [args...]"
+            echo "Usage: $0 {exists|list|download|validate|switch|preload|run-optimized|unload|cleanup|fallback|ensure|health|monitor} [args...]"
             exit 1
             ;;
     esac
