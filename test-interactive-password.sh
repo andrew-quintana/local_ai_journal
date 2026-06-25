@@ -116,3 +116,4 @@ fi
 echo ""
 echo "=== All tests completed ==="
 echo "The working method(s) will be used in the vault manager."
+

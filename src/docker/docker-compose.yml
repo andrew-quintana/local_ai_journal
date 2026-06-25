@@ -107,6 +107,54 @@ services:
       retries: 3
       start_period: 10s
 
+  # MCP Server for Vault Access
+  mcp-server:
+    image: python:3.11-slim
+    container_name: journals-mcp-server
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:8082"  # Localhost only binding
+    volumes:
+      - journals-data:/journals:rw  # Read-write access for MCP tools
+      - ../mcp/vault-mcp-server.py:/app/vault-mcp-server.py:ro
+      - ../mcp/mcp-server.conf:/app/mcp-server.conf:ro
+    networks:
+      - journals-internal
+    command: ["python", "/app/vault-mcp-server.py"]
+    environment:
+      - VAULT_PATH=/journals
+      - MCP_SERVER_PORT=8082
+      - MCP_SERVER_HOST=0.0.0.0
+    depends_on:
+      - ollama
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.connect(('localhost', 8082)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # MCP server needs write access for journal operations
+    tmpfs:
+      - /tmp:noexec,nosuid,size=256m
+    user: "1000:1000"  # Non-root user
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - SETGID
+      - SETUID
+
   # Open WebUI Interface
   open-webui:
     image: ghcr.io/open-webui/open-webui:main

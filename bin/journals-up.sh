@@ -353,6 +353,23 @@ manage_models() {
     log "SUCCESS" "Model management completed successfully"
 }
 
+# Start MCP server for vault access
+start_mcp_server() {
+    log "STEP" "Starting MCP server for vault access..."
+    
+    local mcp_integration="$PROJECT_ROOT/src/mcp/mcp-integration.sh"
+    if [[ -f "$mcp_integration" ]]; then
+        if ! "$mcp_integration" start; then
+            log "WARN" "MCP server startup failed, continuing without MCP integration"
+        else
+            add_startup_step "mcp_started" "mcp_stop"
+            log "SUCCESS" "MCP server started successfully"
+        fi
+    else
+        log "WARN" "MCP integration script not found, skipping MCP server startup"
+    fi
+}
+
 # Display access information and status
 display_access_info() {
     echo
@@ -362,19 +379,23 @@ display_access_info() {
     echo -e "Open WebUI: ${GREEN}http://127.0.0.1:3000${NC}"
     echo -e "Ollama API: ${GREEN}http://127.0.0.1:11434${NC}"
     echo -e "Ollama Models: ${GREEN}http://127.0.0.1:11434/api/tags${NC}"
+    echo -e "MCP Server: ${GREEN}http://127.0.0.1:8082${NC}"
     echo
     echo -e "${CYAN}=== Journal Access ===${NC}"
     echo -e "Your journals are mounted read-only at ${GREEN}/journals${NC} inside WebUI"
     echo -e "Vault location: ${GREEN}${VAULT_MOUNT_POINT:-${HOME}/Journals}${NC}"
+    echo -e "MCP Integration: ${GREEN}Enabled - LLM can access vault via MCP tools${NC}"
     echo
     echo -e "${CYAN}=== Management Commands ===${NC}"
     echo -e "Check status: ${GREEN}$0 status${NC}"
     echo -e "Stop system: ${GREEN}$0 down${NC}"
     echo -e "View logs: ${GREEN}$0 logs [service]${NC}"
+    echo -e "MCP status: ${GREEN}./src/mcp/mcp-integration.sh status${NC}"
     echo
     echo -e "${CYAN}=== Security Notes ===${NC}"
     echo -e "• All services are bound to localhost only (127.0.0.1)"
     echo -e "• Journal files are mounted read-only to AI services"
+    echo -e "• MCP server provides secure vault access to LLM agents"
     echo -e "• No external network access is enabled"
     echo -e "• Vault is encrypted with AES-256"
     echo
@@ -394,6 +415,14 @@ vault_unmount() {
 docker_stop() {
     log "INFO" "Stopping Docker stack..."
     "$DOCKER_MANAGER" down "$GRACEFUL_SHUTDOWN_TIMEOUT" 2>/dev/null || true
+}
+
+mcp_stop() {
+    log "INFO" "Stopping MCP server..."
+    local mcp_integration="$PROJECT_ROOT/src/mcp/mcp-integration.sh"
+    if [[ -f "$mcp_integration" ]]; then
+        "$mcp_integration" stop 2>/dev/null || true
+    fi
 }
 
 # Show help information
@@ -480,6 +509,7 @@ main() {
     start_docker_stack
     verify_services_ready
     manage_models
+    start_mcp_server
     display_access_info
     
     local end_time=$(date +%s)

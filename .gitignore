@@ -28,3 +28,23 @@ yarn-error.log
 .cursor/
 .vscode/
 .idea/
+# === archive defaults ===
+.env
+.env.local
+.env.*.local
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.next/
+dist/
+build/
+.DS_Store
+.ipynb_checkpoints/
+*.log
+*.zip
+*.tar.gz
+*.dmg
+*.iso

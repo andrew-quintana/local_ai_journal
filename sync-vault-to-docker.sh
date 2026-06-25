@@ -24,3 +24,4 @@ docker run --rm -v "$VOLUME_NAME":/data -v "$VAULT_PATH":/vault alpine sh -c "
 "
 
 echo "Vault files synced to Docker volume: $VOLUME_NAME"
+

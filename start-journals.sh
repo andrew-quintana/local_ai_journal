@@ -29,3 +29,4 @@ echo ""
 cd "$(dirname "$0")"
 export LOG_LEVEL="DEBUG"
 ./bin/journals-up.sh
+

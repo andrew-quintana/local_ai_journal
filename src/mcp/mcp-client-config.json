@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "vault-mcp-server": {
+      "command": "python3",
+      "args": ["/app/vault-mcp-server.py"],
+      "env": {
+        "VAULT_PATH": "/journals"
+      }
+    }
+  }
+}
+

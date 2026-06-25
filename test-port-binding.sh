@@ -26,3 +26,4 @@ fi
 echo ""
 echo "Cleaning up..."
 docker-compose -f src/docker/docker-compose.yml down
+
